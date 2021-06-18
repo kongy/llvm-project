@@ -336,10 +336,6 @@ static void mergeInstrProfile(const WeightedFileVector &Inputs,
   std::mutex ErrorLock;
   SmallSet<instrprof_error, 4> WriterErrorCodes;
 
-  // If NumThreads is not specified, auto-detect a good default.
-  if (NumThreads == 0)
-    NumThreads = std::min(hardware_concurrency().compute_thread_count(),
-                          unsigned((Inputs.size() + 1) / 2));
   // FIXME: There's a bug here, where setting NumThreads = Inputs.size() fails
   // the merge_empty_profile.test because the InstrProfWriter.ProfileKind isn't
   // merged, thus the emitted file ends up with a PF_Unknown kind.
@@ -689,7 +685,7 @@ mergeSampleProfile(const WeightedFileVector &Inputs, SymbolRemapper *Remapper,
                    StringRef ProfileSymbolListFile, bool CompressAllSections,
                    bool UseMD5, bool GenPartialProfile,
                    bool SampleMergeColdContext, bool SampleTrimColdContext,
-                   bool SampleColdContextFrameDepth, FailureMode FailMode) {
+                   bool SampleColdContextFrameDepth, unsigned NumThreads, FailureMode FailMode) {
   using namespace sampleprof;
   StringMap<FunctionSamples> ProfileMap;
   SmallVector<std::unique_ptr<sampleprof::SampleProfileReader>, 5> Readers;
@@ -982,6 +978,10 @@ static int merge_main(int argc, const char *argv[]) {
     return 0;
   }
 
+  // If NumThreads is not specified, auto-detect a good default.
+  if (NumThreads == 0)
+    NumThreads = std::min(hardware_concurrency().compute_thread_count(),
+                          unsigned((WeightedInputs.size() + 1) / 2));
   if (ProfileKind == instr)
     mergeInstrProfile(WeightedInputs, Remapper.get(), OutputFilename,
                       OutputFormat, OutputSparse, NumThreads, FailureMode);
@@ -990,7 +990,7 @@ static int merge_main(int argc, const char *argv[]) {
                        OutputFormat, ProfileSymbolListFile, CompressAllSections,
                        UseMD5, GenPartialProfile, SampleMergeColdContext,
                        SampleTrimColdContext, SampleColdContextFrameDepth,
-                       FailureMode);
+                       NumThreads, FailureMode);
 
   return 0;
 }
